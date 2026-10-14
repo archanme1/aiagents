@@ -24,7 +24,7 @@
         </p>
         <div class="lp-actions">
             <a href="{{ url_for('register') }}" class="lp-btn">Create free account</a>
-            <a href="#" class="lp-btn">See how it works</a>
+            <button type="button" class="lp-btn" id="video-open">See how it works</button>
         </div>
     </div>
 
@@ -76,6 +76,19 @@
     </div>
 </section>
 
+<dialog class="lp-modal" id="video-modal" aria-label="How Spendly works">
+    <div class="lp-modal-content">
+        <button type="button" class="lp-modal-close" id="video-close" aria-label="Close video">&times;</button>
+        <div class="lp-modal-video">
+            <iframe id="video-frame"
+                    data-src="https://www.youtube-nocookie.com/embed/M7lc1UVf-VE?autoplay=1&rel=0"
+                    title="How Spendly works"
+                    allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                    allowfullscreen></iframe>
+        </div>
+    </div>
+</dialog>
+
 <section class="features">
     <div class="features-inner">
         <div class="feature-card">
@@ -104,4 +117,32 @@
     </div>
 </section>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        var modal = document.getElementById('video-modal');
+        var frame = document.getElementById('video-frame');
+
+        document.getElementById('video-open').addEventListener('click', function () {
+            frame.src = frame.dataset.src;
+            modal.showModal();
+        });
+
+        document.getElementById('video-close').addEventListener('click', function () {
+            modal.close();
+        });
+
+        // Any click that isn't on the video itself counts as "outside"
+        modal.addEventListener('click', function (e) {
+            if (!e.target.closest('.lp-modal-video')) modal.close();
+        });
+
+        // Fires for every close path (button, backdrop, Esc) — unload the video so it stops
+        modal.addEventListener('close', function () {
+            frame.src = '';
+        });
+    })();
+</script>
 {% endblock %}
