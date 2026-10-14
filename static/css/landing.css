@@ -1,0 +1,205 @@
+/* ------------------------------------------------------------------ */
+/* Landing hero                                                        */
+/* ------------------------------------------------------------------ */
+
+.lp-hero {
+    --lp-green: #3d9a6c;
+    --lp-green-deep: #1f7a4d;
+    --lp-green-tint: #e9f6ef;
+    --lp-green-line: #bfe3cd;
+    --lp-red: #d0453b;
+
+    background: var(--paper-card);
+    padding: 4.5rem 2rem 5rem;
+}
+
+.lp-hero-inner {
+    max-width: 760px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+/* Badge */
+
+.lp-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: var(--lp-green-tint);
+    border: 1px solid var(--lp-green-line);
+    color: var(--lp-green-deep);
+    font-size: 0.95rem;
+    font-weight: 500;
+    padding: 0.45rem 1.1rem;
+    border-radius: 999px;
+    margin-bottom: 2.5rem;
+}
+
+.lp-badge-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--lp-green);
+}
+
+/* Headline */
+
+.lp-title {
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: clamp(2.5rem, 6.5vw, 4.25rem);
+    line-height: 1.12;
+    letter-spacing: -0.035em;
+    color: var(--ink);
+    margin-bottom: 1.75rem;
+}
+
+.lp-title-accent { color: var(--lp-green); }
+
+.lp-subtitle {
+    font-size: clamp(1.05rem, 2vw, 1.25rem);
+    color: var(--ink-muted);
+    line-height: 1.65;
+    max-width: 535px;
+    margin: 0 auto 2.5rem;
+}
+
+/* Buttons */
+
+.lp-actions {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.9rem;
+    margin-bottom: 4rem;
+}
+
+.lp-btn {
+    display: inline-block;
+    background: var(--ink);
+    color: #ffffff;
+    font-size: 1.05rem;
+    font-weight: 600;
+    padding: 0.95rem 2.25rem;
+    border-radius: 10px;
+    transition: background 0.2s;
+}
+
+.lp-btn:hover { background: var(--accent); }
+
+/* App window */
+
+.lp-window {
+    max-width: 880px;
+    margin: 0 auto;
+    background: #f6f5f1;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.4rem 1.5rem 1.5rem;
+}
+
+.lp-window-dots {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.4rem;
+}
+
+.lp-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.lp-dot-red    { background: #ec8a83; }
+.lp-dot-yellow { background: #f3c463; }
+.lp-dot-green  { background: #a8e0c4; }
+
+/* Stat cards */
+
+.lp-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.lp-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1.1rem 1.5rem 1.2rem;
+    text-align: left;
+}
+
+.lp-stat-label {
+    font-size: 0.95rem;
+    color: var(--ink-muted);
+}
+
+.lp-stat-value {
+    font-size: 1.75rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: var(--ink);
+}
+
+.lp-stat-meta {
+    font-size: 0.95rem;
+    color: var(--ink-faint);
+}
+
+.lp-stat-up   { color: var(--lp-red); }
+.lp-stat-good { color: var(--lp-green); }
+
+/* Category bars */
+
+.lp-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 1.05rem;
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1.4rem 1.5rem;
+}
+
+.lp-bar-row {
+    display: grid;
+    grid-template-columns: 70px 1fr;
+    align-items: center;
+    gap: 1rem;
+}
+
+.lp-bar-label {
+    font-size: 1rem;
+    color: var(--ink-soft);
+    text-align: center;
+}
+
+.lp-bar-track {
+    height: 10px;
+    background: #efeee9;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.lp-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+}
+
+.lp-bar-food   { background: #e6a648; }
+.lp-bar-travel { background: #4a88dc; }
+.lp-bar-bills  { background: #7b6fd8; }
+
+/* Responsive */
+
+@media (max-width: 700px) {
+    .lp-hero { padding: 3rem 1rem 3.5rem; }
+    .lp-stats { grid-template-columns: 1fr; }
+    .lp-btn { width: 100%; text-align: center; }
+}
