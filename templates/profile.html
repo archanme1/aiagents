@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Profile – Spendly{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="profile-page">
+
+    <section class="profile-card">
+        <div class="profile-avatar" aria-hidden="true">{{ user.initials }}</div>
+        <div class="profile-card-body">
+            <h1 class="profile-name">{{ user.name }}</h1>
+            <p class="profile-email">{{ user.email }}</p>
+            <p class="profile-since">Member since {{ user.member_since }}</p>
+        </div>
+    </section>
+
+    <section aria-labelledby="stats-title">
+        <h2 id="stats-title" class="visually-hidden">Summary</h2>
+        <div class="stats-row">
+            <div class="stat-card">
+                <span class="stat-label">Total spent</span>
+                <span class="stat-value">{{ stats.total_spent }}</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Transactions</span>
+                <span class="stat-value">{{ stats.transaction_count }}</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Top category</span>
+                <span class="stat-value">{{ stats.top_category }}</span>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2 class="section-title">Recent transactions</h2>
+        <div class="table-wrap">
+            <table class="txn-table">
+                <caption class="visually-hidden">Recent transactions</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Date</th>
+                        <th scope="col">Description</th>
+                        <th scope="col">Category</th>
+                        <th scope="col" class="txn-amount">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in transactions %}
+                    <tr>
+                        <td>{{ t.date }}</td>
+                        <td>{{ t.description }}</td>
+                        <td><span class="badge badge--{{ t.category|lower }}">{{ t.category }}</span></td>
+                        <td class="txn-amount">{{ t.amount }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section>
+        <h2 class="section-title">Spending by category</h2>
+        <ul class="cat-list">
+            {% for c in categories %}
+            <li class="cat-row">
+                <div class="cat-row-head">
+                    <span class="badge badge--{{ c.name|lower }}">{{ c.name }}</span>
+                    <span class="cat-total">{{ c.total }}</span>
+                    <span class="cat-pct">{{ c.percent }}%</span>
+                </div>
+                <progress class="cat-bar" value="{{ c.percent }}" max="100">{{ c.percent }}%</progress>
+            </li>
+            {% endfor %}
+        </ul>
+    </section>
+
+</div>
+{% endblock %}
