@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from datetime import date
+from datetime import date, datetime
 
 from werkzeug.security import generate_password_hash
 
@@ -110,3 +110,154 @@ def seed_db():
         conn.commit()
     finally:
         conn.close()
+
+
+# ------------------------------------------------------------------ #
+# Profile page queries                                                #
+# ------------------------------------------------------------------ #
+
+# ===== SHARED (orchestrator-owned — do not edit) =====
+
+KNOWN_CATEGORIES = {
+    "food",
+    "transport",
+    "bills",
+    "health",
+    "entertainment",
+    "shopping",
+    "other",
+}
+
+
+def category_slug(name):
+    slug = (name or "").strip().lower()
+    return slug if slug in KNOWN_CATEGORIES else "other"
+
+
+def format_inr(amount):
+    return f"₹{amount:,.2f}"
+
+
+def get_user_by_id(user_id):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT name, email, created_at FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if row is None:
+        return None
+
+    initials = "".join(part[0] for part in row["name"].split()[:2]).upper()
+    try:
+        member_since = datetime.strptime(
+            row["created_at"], "%Y-%m-%d %H:%M:%S"
+        ).strftime("%B %Y")
+    except (TypeError, ValueError):
+        member_since = "—"
+
+    return {
+        "name": row["name"],
+        "email": row["email"],
+        "initials": initials,
+        "member_since": member_since,
+    }
+
+
+# ===== SECTION: TRANSACTIONS (subagent 1) =====
+
+def get_recent_transactions(user_id, limit=10):
+    """Return the user's newest expenses as a list of dicts.
+
+    Keys: date ("15 Oct 2026"), description (None -> "—"), category,
+    badge (category_slug), amount (format_inr). Ordered date DESC, id DESC.
+    """
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT date, description, category, amount FROM expenses "
+            "WHERE user_id = ? ORDER BY date DESC, id DESC LIMIT ?",
+            (user_id, limit),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    return [
+        {
+            "date": datetime.strptime(row["date"], "%Y-%m-%d").strftime("%d %b %Y"),
+            "description": row["description"] or "—",
+            "category": row["category"],
+            "badge": category_slug(row["category"]),
+            "amount": format_inr(row["amount"]),
+        }
+        for row in rows
+    ]
+
+
+# ===== SECTION: SUMMARY STATS (subagent 2) =====
+
+def get_summary_stats(user_id):
+    """Return {"total_spent": float, "transaction_count": int, "top_category": str}.
+
+    No expenses -> {"total_spent": 0, "transaction_count": 0, "top_category": "—"}.
+    """
+    conn = get_db()
+    try:
+        totals = conn.execute(
+            "SELECT COUNT(*) AS cnt, COALESCE(SUM(amount), 0) AS total "
+            "FROM expenses WHERE user_id = ?",
+            (user_id,),
+        ).fetchone()
+        top = conn.execute(
+            "SELECT category FROM expenses WHERE user_id = ? "
+            "GROUP BY category ORDER BY SUM(amount) DESC, category ASC LIMIT 1",
+            (user_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if totals["cnt"] == 0 or top is None:
+        return {"total_spent": 0, "transaction_count": 0, "top_category": "—"}
+
+    return {
+        "total_spent": float(totals["total"]),
+        "transaction_count": int(totals["cnt"]),
+        "top_category": top["category"],
+    }
+
+
+# ===== SECTION: CATEGORY BREAKDOWN (subagent 3) =====
+
+def get_category_breakdown(user_id):
+    """Return per-category totals as a list of dicts.
+
+    Keys: name, amount (float), pct (int, all pct sum to 100), badge.
+    Ordered amount DESC, name ASC. No expenses -> [].
+    """
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT category, SUM(amount) AS amount FROM expenses "
+            "WHERE user_id = ? GROUP BY category "
+            "ORDER BY amount DESC, category ASC",
+            (user_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    total = sum(row["amount"] for row in rows)
+    breakdown = [
+        {
+            "name": row["category"],
+            "amount": float(row["amount"]),
+            "pct": round(row["amount"] / total * 100) if total else 0,
+            "badge": category_slug(row["category"]),
+        }
+        for row in rows
+    ]
+    if breakdown and total:
+        breakdown[0]["pct"] += 100 - sum(item["pct"] for item in breakdown)
+    return breakdown
