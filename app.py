@@ -1,4 +1,5 @@
 import calendar
+import math
 import os
 import sqlite3
 from datetime import date, datetime
@@ -7,6 +8,7 @@ from flask import Flask, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash
 
 from database.db import (
+    CATEGORIES,
     create_user,
     format_inr,
     get_category_breakdown,
@@ -16,12 +18,17 @@ from database.db import (
     get_user_by_email,
     get_user_by_id,
     init_db,
+    insert_expense,
     seed_db,
 )
 
 app = Flask(__name__)
 # Development fallback only — set SECRET_KEY in the environment for real use
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
+# Lax stops browsers sending the session cookie on cross-site POSTs (CSRF)
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+MAX_EXPENSE_AMOUNT = 10_000_000
 
 with app.app_context():
     init_db()
@@ -54,6 +61,39 @@ def _normalize_iso_date(value):
         return datetime.strptime(value or "", "%Y-%m-%d").date().isoformat()
     except ValueError:
         return None
+
+
+def _validate_expense(amount, category, date_str, description):
+    """Return (values, error); values is None when error is set.
+
+    values keys (amount, category, date, description) match insert_expense's
+    parameters after user_id.
+    """
+    try:
+        amount = float(amount)
+    except ValueError:
+        return None, "Amount must be a number."
+    if not math.isfinite(amount) or amount <= 0:
+        return None, "Amount must be greater than 0."
+    if amount > MAX_EXPENSE_AMOUNT:
+        return None, f"Amount must not exceed {MAX_EXPENSE_AMOUNT:,}."
+
+    if category not in CATEGORIES:
+        return None, "Please choose a valid category."
+
+    iso_date = _normalize_iso_date(date_str)
+    if iso_date is None:
+        return None, "Please enter a valid date."
+
+    if len(description) > 200:
+        return None, "Description must be 200 characters or fewer."
+
+    return {
+        "amount": round(amount, 2),
+        "category": category,
+        "date": iso_date,
+        "description": description or None,
+    }, None
 
 
 def _parse_date_filter(date_from, date_to):
@@ -228,9 +268,40 @@ def analytics():
     return render_template("analytics.html")
 
 
-@app.route("/expenses/add")
+@app.route("/expenses/add", methods=["GET", "POST"])
 def add_expense():
-    return "Add expense — coming in Step 7"
+    user_id = session.get("user_id")
+    if not user_id:
+        return redirect(url_for("login"))
+
+    if get_user_by_id(user_id) is None:
+        session.clear()
+        return redirect(url_for("login"))
+
+    if request.method == "GET":
+        return render_template(
+            "add_expense.html",
+            categories=CATEGORIES,
+            date=date.today().isoformat(),
+        )
+
+    # Keys double as the template's variable names for re-filling the form
+    form = {
+        "amount": request.form.get("amount", "").strip(),
+        "category": request.form.get("category", ""),
+        "date": request.form.get("date", "").strip(),
+        "description": request.form.get("description", "").strip(),
+    }
+    values, error = _validate_expense(
+        form["amount"], form["category"], form["date"], form["description"]
+    )
+    if error:
+        return render_template(
+            "add_expense.html", categories=CATEGORIES, error=error, **form
+        )
+
+    insert_expense(user_id, **values)
+    return redirect(url_for("profile"))
 
 
 @app.route("/expenses/<int:id>/edit")
