@@ -4,7 +4,7 @@ import os
 import sqlite3
 from datetime import date, datetime
 
-from flask import Flask, redirect, render_template, request, session, url_for
+from flask import Flask, abort, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash
 
 from database.db import (
@@ -13,6 +13,7 @@ from database.db import (
     format_inr,
     get_category_breakdown,
     get_db,
+    get_expense_by_id,
     get_recent_transactions,
     get_summary_stats,
     get_user_by_email,
@@ -20,6 +21,7 @@ from database.db import (
     init_db,
     insert_expense,
     seed_db,
+    update_expense,
 )
 
 app = Flask(__name__)
@@ -304,9 +306,53 @@ def add_expense():
     return redirect(url_for("profile"))
 
 
-@app.route("/expenses/<int:id>/edit")
+@app.route("/expenses/<int:id>/edit", methods=["GET", "POST"])
 def edit_expense(id):
-    return "Edit expense — coming in Step 8"
+    user_id = session.get("user_id")
+    if not user_id:
+        return redirect(url_for("login"))
+
+    if get_user_by_id(user_id) is None:
+        session.clear()
+        return redirect(url_for("login"))
+
+    expense = get_expense_by_id(id, user_id)
+    if expense is None:
+        abort(404)
+
+    if request.method == "GET":
+        return render_template(
+            "edit_expense.html",
+            expense_id=id,
+            categories=CATEGORIES,
+            amount=expense["amount"],
+            category=expense["category"],
+            date=expense["date"],
+            description=expense["description"],
+        )
+
+    # Keys double as the template's variable names for re-filling the form
+    form = {
+        "amount": request.form.get("amount", "").strip(),
+        "category": request.form.get("category", ""),
+        "date": request.form.get("date", "").strip(),
+        "description": request.form.get("description", "").strip(),
+    }
+    values, error = _validate_expense(
+        form["amount"], form["category"], form["date"], form["description"]
+    )
+    if error:
+        return render_template(
+            "edit_expense.html",
+            expense_id=id,
+            categories=CATEGORIES,
+            error=error,
+            **form,
+        )
+
+    if not update_expense(id, user_id, **values):
+        abort(404)
+    return redirect(url_for("profile"))
 
 
 @app.route("/expenses/<int:id>/delete")

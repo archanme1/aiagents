@@ -149,6 +149,14 @@
     font-variant-numeric: tabular-nums;
 }
 
+.txn-edit {
+    color: var(--accent);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.txn-edit:hover { text-decoration: underline; }
+
 /* Category badges — filled and outlined variants keep categories distinct
    using only the existing colour tokens */
 .badge {

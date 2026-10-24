@@ -94,6 +94,36 @@ def insert_expense(user_id, amount, category, date, description):
         conn.close()
 
 
+def get_expense_by_id(expense_id, user_id):
+    """Return the expense as a dict, or None if missing or owned by another user."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT id, amount, category, date, description FROM expenses "
+            "WHERE id = ? AND user_id = ?",
+            (expense_id, user_id),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    return dict(row) if row else None
+
+
+def update_expense(expense_id, user_id, amount, category, date, description):
+    """Update an expense; return True if a row owned by user_id was changed."""
+    conn = get_db()
+    try:
+        cursor = conn.execute(
+            "UPDATE expenses SET amount = ?, category = ?, date = ?, description = ? "
+            "WHERE id = ? AND user_id = ?",
+            (amount, category, date, description, expense_id, user_id),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+    finally:
+        conn.close()
+
+
 def seed_db():
     conn = get_db()
     try:
@@ -206,7 +236,7 @@ def get_user_by_id(user_id):
 def get_recent_transactions(user_id, limit=10, date_from=None, date_to=None):
     """Return the user's newest expenses as a list of dicts.
 
-    Keys: date ("15 Oct 2026"), description (None -> "—"), category,
+    Keys: id, date ("15 Oct 2026"), description (None -> "—"), category,
     badge (category_slug), amount (format_inr). Ordered date DESC, id DESC.
     Optionally restricted to an inclusive ISO date range.
     """
@@ -214,7 +244,7 @@ def get_recent_transactions(user_id, limit=10, date_from=None, date_to=None):
     conn = get_db()
     try:
         rows = conn.execute(
-            "SELECT date, description, category, amount FROM expenses "
+            "SELECT id, date, description, category, amount FROM expenses "
             "WHERE user_id = ?" + clause + " ORDER BY date DESC, id DESC LIMIT ?",
             (user_id, *params, limit),
         ).fetchall()
@@ -223,6 +253,7 @@ def get_recent_transactions(user_id, limit=10, date_from=None, date_to=None):
 
     return [
         {
+            "id": row["id"],
             "date": datetime.strptime(row["date"], "%Y-%m-%d").strftime("%d %b %Y"),
             "description": row["description"] or "—",
             "category": row["category"],
