@@ -63,7 +63,10 @@
     </section>
 
     <section>
-        <h2 class="section-title">{{ "Transactions" if date_from else "Recent transactions" }}</h2>
+        <div class="section-head">
+            <h2 class="section-title">{{ "Transactions" if date_from else "Recent transactions" }}</h2>
+            <a href="{{ url_for('add_expense') }}" class="btn-primary">Add Expense</a>
+        </div>
         <div class="table-wrap">
             <table class="txn-table">
                 <caption class="visually-hidden">Recent transactions</caption>
