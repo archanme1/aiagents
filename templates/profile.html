@@ -54,8 +54,12 @@
                     <tr>
                         <td>{{ t.date }}</td>
                         <td>{{ t.description }}</td>
-                        <td><span class="badge badge--{{ t.category|lower }}">{{ t.category }}</span></td>
+                        <td><span class="badge badge--{{ t.badge }}">{{ t.category }}</span></td>
                         <td class="txn-amount">{{ t.amount }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="txn-empty">No transactions yet.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -69,12 +73,14 @@
             {% for c in categories %}
             <li class="cat-row">
                 <div class="cat-row-head">
-                    <span class="badge badge--{{ c.name|lower }}">{{ c.name }}</span>
+                    <span class="badge badge--{{ c.badge }}">{{ c.name }}</span>
                     <span class="cat-total">{{ c.total }}</span>
                     <span class="cat-pct">{{ c.percent }}%</span>
                 </div>
                 <progress class="cat-bar" value="{{ c.percent }}" max="100">{{ c.percent }}%</progress>
             </li>
+            {% else %}
+            <li class="cat-empty">No spending to break down yet.</li>
             {% endfor %}
         </ul>
     </section>
