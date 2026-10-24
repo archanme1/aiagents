@@ -201,3 +201,143 @@ def test_category_breakdown_unknown_category_badge_other():
     result = get_category_breakdown(uid)
     assert result[0]["name"] == "Gadgets"
     assert result[0]["badge"] == "other"
+
+
+# --- DATE FILTER (Step 6) ---
+
+# Dates: Sep 30 (outside), Oct 1, Oct 10, Oct 15 (inside), Oct 16 (outside)
+DATE_FILTER_ROWS = [
+    (100.0, "Bills", "2026-09-30", "before"),
+    (10.0, "Food", "2026-10-01", "lower edge"),
+    (20.0, "Food", "2026-10-10", "middle"),
+    (5.0, "Transport", "2026-10-15", "upper edge"),
+    (200.0, "Shopping", "2026-10-16", "after"),
+]
+
+
+def test_summary_stats_date_range_is_inclusive_on_both_bounds():
+    from database.db import get_summary_stats
+
+    uid = make_user_with_expenses(DATE_FILTER_ROWS, email="df1@example.com")
+    stats = get_summary_stats(uid, date_from="2026-10-01", date_to="2026-10-15")
+    assert stats["total_spent"] == pytest.approx(35.0)
+    assert stats["transaction_count"] == 3
+
+
+def test_summary_stats_none_dates_are_unfiltered():
+    from database.db import get_summary_stats
+
+    uid = make_user_with_expenses(DATE_FILTER_ROWS, email="df2@example.com")
+    unfiltered = get_summary_stats(uid)
+    explicit_none = get_summary_stats(uid, date_from=None, date_to=None)
+    assert explicit_none == unfiltered
+    assert unfiltered["transaction_count"] == 5
+    assert unfiltered["total_spent"] == pytest.approx(335.0)
+
+
+def test_summary_stats_empty_range_returns_zeroes():
+    from database.db import get_summary_stats
+
+    uid = make_user_with_expenses(DATE_FILTER_ROWS, email="df3@example.com")
+    stats = get_summary_stats(uid, date_from="2025-01-01", date_to="2025-01-31")
+    assert stats == {
+        "total_spent": 0,
+        "transaction_count": 0,
+        "top_category": "—",
+    }
+
+
+def test_summary_stats_top_category_respects_range():
+    from database.db import get_summary_stats
+
+    uid = make_user_with_expenses(DATE_FILTER_ROWS, email="df4@example.com")
+    # Unfiltered top is Shopping (200) / Bills (100); in range it is Food (30).
+    assert get_summary_stats(uid)["top_category"] == "Shopping"
+    stats = get_summary_stats(uid, date_from="2026-10-01", date_to="2026-10-15")
+    assert stats["top_category"] == "Food"
+
+
+def test_summary_stats_single_day_range():
+    from database.db import get_summary_stats
+
+    uid = make_user_with_expenses(DATE_FILTER_ROWS, email="df5@example.com")
+    stats = get_summary_stats(uid, date_from="2026-10-10", date_to="2026-10-10")
+    assert stats["transaction_count"] == 1
+    assert stats["total_spent"] == pytest.approx(20.0)
+
+
+def test_summary_stats_date_filter_still_scoped_to_user():
+    from database.db import get_summary_stats
+
+    uid = make_user_with_expenses(DATE_FILTER_ROWS, email="df6a@example.com")
+    make_user_with_expenses(
+        [(999.0, "Bills", "2026-10-05", "other user")], email="df6b@example.com"
+    )
+    stats = get_summary_stats(uid, date_from="2026-10-01", date_to="2026-10-15")
+    assert stats["total_spent"] == pytest.approx(35.0)
+
+
+def test_recent_transactions_date_range_is_inclusive_on_both_bounds():
+    uid = make_user_with_expenses(DATE_FILTER_ROWS, email="df7@example.com")
+    result = get_recent_transactions(
+        uid, date_from="2026-10-01", date_to="2026-10-15"
+    )
+    assert [r["description"] for r in result] == [
+        "upper edge", "middle", "lower edge"
+    ]
+
+
+def test_recent_transactions_none_dates_are_unfiltered():
+    uid = make_user_with_expenses(DATE_FILTER_ROWS, email="df8@example.com")
+    result = get_recent_transactions(uid, date_from=None, date_to=None)
+    assert len(result) == 5
+    assert result == get_recent_transactions(uid)
+
+
+def test_recent_transactions_empty_range_returns_empty_list():
+    uid = make_user_with_expenses(DATE_FILTER_ROWS, email="df9@example.com")
+    result = get_recent_transactions(
+        uid, date_from="2025-01-01", date_to="2025-01-31"
+    )
+    assert result == []
+
+
+def test_recent_transactions_limit_applies_within_range():
+    uid = make_user_with_expenses(DATE_FILTER_ROWS, email="df10@example.com")
+    result = get_recent_transactions(
+        uid, limit=2, date_from="2026-10-01", date_to="2026-10-15"
+    )
+    assert [r["description"] for r in result] == ["upper edge", "middle"]
+
+
+def test_category_breakdown_date_range_only_includes_in_range_categories():
+    uid = make_user_with_expenses(DATE_FILTER_ROWS, email="df11@example.com")
+    result = get_category_breakdown(
+        uid, date_from="2026-10-01", date_to="2026-10-15"
+    )
+    assert [r["name"] for r in result] == ["Food", "Transport"]
+    assert result[0]["amount"] == pytest.approx(30.0)
+    assert result[1]["amount"] == pytest.approx(5.0)
+
+
+def test_category_breakdown_pct_sums_to_100_within_range():
+    uid = make_user_with_expenses(DATE_FILTER_ROWS, email="df12@example.com")
+    result = get_category_breakdown(
+        uid, date_from="2026-10-01", date_to="2026-10-15"
+    )
+    assert sum(r["pct"] for r in result) == 100
+
+
+def test_category_breakdown_none_dates_are_unfiltered():
+    uid = make_user_with_expenses(DATE_FILTER_ROWS, email="df13@example.com")
+    result = get_category_breakdown(uid, date_from=None, date_to=None)
+    assert result == get_category_breakdown(uid)
+    assert {r["name"] for r in result} == {"Bills", "Food", "Transport", "Shopping"}
+
+
+def test_category_breakdown_empty_range_returns_empty_list():
+    uid = make_user_with_expenses(DATE_FILTER_ROWS, email="df14@example.com")
+    result = get_category_breakdown(
+        uid, date_from="2025-01-01", date_to="2025-01-31"
+    )
+    assert result == []

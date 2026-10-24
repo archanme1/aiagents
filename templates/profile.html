@@ -18,6 +18,32 @@
         </div>
     </section>
 
+    <section class="filter-bar" aria-labelledby="filter-title">
+        <h2 id="filter-title" class="visually-hidden">Filter by date</h2>
+        <div class="filter-presets">
+            {% for p in presets %}
+            <a href="{{ url_for('profile', date_from=p.date_from, date_to=p.date_to) }}"
+               class="filter-preset{% if p.active %} filter-preset--active{% endif %}"
+               {% if p.active %}aria-current="page"{% endif %}>{{ p.label }}</a>
+            {% endfor %}
+        </div>
+        <form class="filter-form{% if custom_active %} filter-form--active{% endif %}"
+              method="get" action="{{ url_for('profile') }}">
+            <div class="filter-field">
+                <label for="date_from">From</label>
+                <input type="date" id="date_from" name="date_from" class="form-input" value="{{ date_from or '' }}">
+            </div>
+            <div class="filter-field">
+                <label for="date_to">To</label>
+                <input type="date" id="date_to" name="date_to" class="form-input" value="{{ date_to or '' }}">
+            </div>
+            <button type="submit" class="btn-primary">Apply</button>
+        </form>
+        {% if filter_error %}
+        <p class="filter-error" role="alert">{{ filter_error }}</p>
+        {% endif %}
+    </section>
+
     <section aria-labelledby="stats-title">
         <h2 id="stats-title" class="visually-hidden">Summary</h2>
         <div class="stats-row">
@@ -37,7 +63,7 @@
     </section>
 
     <section>
-        <h2 class="section-title">Recent transactions</h2>
+        <h2 class="section-title">{{ "Transactions" if date_from else "Recent transactions" }}</h2>
         <div class="table-wrap">
             <table class="txn-table">
                 <caption class="visually-hidden">Recent transactions</caption>

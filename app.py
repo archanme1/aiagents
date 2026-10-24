@@ -1,5 +1,7 @@
+import calendar
 import os
 import sqlite3
+from datetime import date, datetime
 
 from flask import Flask, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash
@@ -44,6 +46,63 @@ def _validate_registration(name, email, password):
         return "Password must be at least 8 characters."
 
     return None
+
+
+def _normalize_iso_date(value):
+    """Return value as zero-padded YYYY-MM-DD, or None if it isn't a real date."""
+    try:
+        return datetime.strptime(value or "", "%Y-%m-%d").date().isoformat()
+    except ValueError:
+        return None
+
+
+def _parse_date_filter(date_from, date_to):
+    """Return (date_from, date_to, error); bounds are None when unfiltered."""
+    date_from = _normalize_iso_date(date_from)
+    date_to = _normalize_iso_date(date_to)
+    if date_from is None or date_to is None:
+        return None, None, None
+    # Normalised ISO strings sort chronologically, so a string compare is safe
+    if date_from > date_to:
+        return None, None, "Start date must be before end date."
+    return date_from, date_to, None
+
+
+def _months_ago(today, months):
+    month_index = today.year * 12 + today.month - 1 - months
+    year, month = divmod(month_index, 12)
+    month += 1
+    last_day = calendar.monthrange(year, month)[1]
+    return date(year, month, min(today.day, last_day))
+
+
+def _build_presets(today, date_from, date_to):
+    """Return (presets, custom_active) for the filter bar.
+
+    custom_active is True when a range is applied that matches no preset.
+    """
+    ranges = [
+        ("This Month", today.replace(day=1), today),
+        ("Last 3 Months", _months_ago(today, 3), today),
+        ("Last 6 Months", _months_ago(today, 6), today),
+        ("All Time", None, None),
+    ]
+    presets = []
+    for label, start, end in ranges:
+        start_iso = start.isoformat() if start else None
+        end_iso = end.isoformat() if end else None
+        presets.append(
+            {
+                "label": label,
+                "date_from": start_iso,
+                "date_to": end_iso,
+                "active": start_iso == date_from and end_iso == date_to,
+            }
+        )
+    custom_active = bool(date_from and date_to) and not any(
+        p["active"] for p in presets
+    )
+    return presets, custom_active
 
 
 # ------------------------------------------------------------------ #
@@ -133,20 +192,32 @@ def profile():
         session.clear()
         return redirect(url_for("login"))
 
-    stats = get_summary_stats(user_id)
+    date_from, date_to, filter_error = _parse_date_filter(
+        request.args.get("date_from"), request.args.get("date_to")
+    )
+
+    date_range = {"date_from": date_from, "date_to": date_to}
+
+    stats = get_summary_stats(user_id, **date_range)
     stats["total_spent"] = format_inr(stats["total_spent"])
 
     categories = [
         {**c, "total": format_inr(c["amount"]), "percent": c["pct"]}
-        for c in get_category_breakdown(user_id)
+        for c in get_category_breakdown(user_id, **date_range)
     ]
+
+    presets, custom_active = _build_presets(date.today(), date_from, date_to)
 
     return render_template(
         "profile.html",
         user=user,
         stats=stats,
-        transactions=get_recent_transactions(user_id),
+        transactions=get_recent_transactions(user_id, **date_range),
         categories=categories,
+        filter_error=filter_error,
+        presets=presets,
+        custom_active=custom_active,
+        **date_range,
     )
 
 

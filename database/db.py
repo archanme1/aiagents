@@ -138,6 +138,16 @@ def format_inr(amount):
     return f"₹{amount:,.2f}"
 
 
+def _date_clause(date_from, date_to):
+    """Return (sql_fragment, params) restricting expenses to an inclusive range.
+
+    Both bounds are required; otherwise no restriction is applied.
+    """
+    if date_from and date_to:
+        return " AND date BETWEEN ? AND ?", [date_from, date_to]
+    return "", []
+
+
 def get_user_by_id(user_id):
     conn = get_db()
     try:
@@ -169,18 +179,20 @@ def get_user_by_id(user_id):
 
 # ===== SECTION: TRANSACTIONS (subagent 1) =====
 
-def get_recent_transactions(user_id, limit=10):
+def get_recent_transactions(user_id, limit=10, date_from=None, date_to=None):
     """Return the user's newest expenses as a list of dicts.
 
     Keys: date ("15 Oct 2026"), description (None -> "—"), category,
     badge (category_slug), amount (format_inr). Ordered date DESC, id DESC.
+    Optionally restricted to an inclusive ISO date range.
     """
+    clause, params = _date_clause(date_from, date_to)
     conn = get_db()
     try:
         rows = conn.execute(
             "SELECT date, description, category, amount FROM expenses "
-            "WHERE user_id = ? ORDER BY date DESC, id DESC LIMIT ?",
-            (user_id, limit),
+            "WHERE user_id = ?" + clause + " ORDER BY date DESC, id DESC LIMIT ?",
+            (user_id, *params, limit),
         ).fetchall()
     finally:
         conn.close()
@@ -199,22 +211,24 @@ def get_recent_transactions(user_id, limit=10):
 
 # ===== SECTION: SUMMARY STATS (subagent 2) =====
 
-def get_summary_stats(user_id):
+def get_summary_stats(user_id, date_from=None, date_to=None):
     """Return {"total_spent": float, "transaction_count": int, "top_category": str}.
 
     No expenses -> {"total_spent": 0, "transaction_count": 0, "top_category": "—"}.
+    Optionally restricted to an inclusive ISO date range.
     """
+    clause, params = _date_clause(date_from, date_to)
     conn = get_db()
     try:
         totals = conn.execute(
             "SELECT COUNT(*) AS cnt, COALESCE(SUM(amount), 0) AS total "
-            "FROM expenses WHERE user_id = ?",
-            (user_id,),
+            "FROM expenses WHERE user_id = ?" + clause,
+            (user_id, *params),
         ).fetchone()
         top = conn.execute(
-            "SELECT category FROM expenses WHERE user_id = ? "
-            "GROUP BY category ORDER BY SUM(amount) DESC, category ASC LIMIT 1",
-            (user_id,),
+            "SELECT category FROM expenses WHERE user_id = ?" + clause
+            + " GROUP BY category ORDER BY SUM(amount) DESC, category ASC LIMIT 1",
+            (user_id, *params),
         ).fetchone()
     finally:
         conn.close()
@@ -231,19 +245,21 @@ def get_summary_stats(user_id):
 
 # ===== SECTION: CATEGORY BREAKDOWN (subagent 3) =====
 
-def get_category_breakdown(user_id):
+def get_category_breakdown(user_id, date_from=None, date_to=None):
     """Return per-category totals as a list of dicts.
 
     Keys: name, amount (float), pct (int, all pct sum to 100), badge.
     Ordered amount DESC, name ASC. No expenses -> [].
+    Optionally restricted to an inclusive ISO date range.
     """
+    clause, params = _date_clause(date_from, date_to)
     conn = get_db()
     try:
         rows = conn.execute(
             "SELECT category, SUM(amount) AS amount FROM expenses "
-            "WHERE user_id = ? GROUP BY category "
+            "WHERE user_id = ?" + clause + " GROUP BY category "
             "ORDER BY amount DESC, category ASC",
-            (user_id,),
+            (user_id, *params),
         ).fetchall()
     finally:
         conn.close()
