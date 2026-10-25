@@ -99,7 +99,7 @@ pytest -s
 | `GET /profile` | Implemented — renders `profile.html` with live per-user data from `database/db.py` |
 | `GET/POST /expenses/add` | Implemented — renders `add_expense.html`, inserts via `insert_expense` in `database/db.py`, redirects to `/profile` |
 | `GET/POST /expenses/<id>/edit` | Implemented — renders `edit_expense.html`, updates via `update_expense` in `database/db.py`, redirects to `/profile`; 404 for missing/foreign expenses |
-| `GET /expenses/<id>/delete` | Stub — Step 9 |
+| `POST /expenses/<id>/delete` | Implemented — POST-only, deletes via `delete_expense` in `database/db.py`, redirects to `/profile`; 404 for missing/foreign expenses |
 
 **Do not implement a stub route unless the active task explicitly targets that step.**
 

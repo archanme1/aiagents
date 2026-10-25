@@ -157,6 +157,21 @@
 
 .txn-edit:hover { text-decoration: underline; }
 
+.delete-form { display: inline; }
+
+.btn-delete {
+    background: none;
+    border: none;
+    padding: 0;
+    margin-left: 0.75rem;
+    font: inherit;
+    font-weight: 500;
+    color: var(--danger);
+    cursor: pointer;
+}
+
+.btn-delete:hover { text-decoration: underline; }
+
 /* Category badges — filled and outlined variants keep categories distinct
    using only the existing colour tokens */
 .badge {
