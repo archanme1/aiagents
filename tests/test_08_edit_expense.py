@@ -360,15 +360,3 @@ def test_post_error_keeps_submitted_values(auth_client, expense_id):
     assert '<option value="Bills" selected>' in body
     assert 'value="2026-04-01"' in body
     assert 'value="Lunch"' not in body, "Original values must not replace submitted"
-
-
-# --------------------------------------------------------------------------
-# Step 9 stub is untouched
-# --------------------------------------------------------------------------
-
-def test_delete_route_still_returns_step_9_stub(auth_client, expense_id):
-    response = auth_client.get(f"/expenses/{expense_id}/delete")
-
-    assert response.status_code == 200
-    assert "Delete expense — coming in Step 9" in response.get_data(as_text=True)
-    assert fetch_expense(expense_id) is not None
